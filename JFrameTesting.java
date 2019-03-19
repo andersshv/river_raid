@@ -41,15 +41,19 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		}
 		if(keyCode == KeyEvent.VK_LEFT) {			
 			left = true;
+			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_RIGHT) {			
 			right = true;
+			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_UP) {			
 			up = true;
+			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_DOWN) {			
 			down = true;
+			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_SPACE) {			
 			space = true;
@@ -130,7 +134,10 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	private int planePosX;
 	private int planePosY = (contentHeight*tileWidth)-tileWidth*2;
 	private int planeSpeedX = 4;	
-	private int planeSpeedY = 12;
+	private int planeSpeedYSlow = 4;
+	private int planeSpeedYMedium = 8;
+	private int planeSpeedYFast = 12;
+	private int planeSpeedY = planeSpeedYMedium;
 	private BufferedImage straightPlane;	
 	private BufferedImage leftPlane;
 	private BufferedImage rightPlane;		
@@ -262,6 +269,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	/**************** GAME LOOP ***************/
 	int tick = 0;
 	boolean running = true;
+	boolean gameStartState = true;
 	private void enterGameLoop() {
 		long startTime, endTime;		
 		long FPS = 30;
@@ -279,8 +287,8 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 				sleepingTime = timePrFrame_ms - timeSpend_ms;
 				System.out.println(sleepingTime + "______" + startTime);
 				if (sleepingTime > 0) { Thread.sleep(sleepingTime); }
-				if (!collision) {
-					tick += 1;
+				if (!collision && !gameStartState) {
+					tick += 1 * planeSpeedY;
 				}
 			} catch (Exception e) {
 				running = false;
@@ -297,25 +305,36 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 			collision = false;
 			planePosX = planeStartPosX;
 			bulletExists = false;
+			gameStartState = true;
+			plane = straightPlane;
 		}
-		if (!collision) {
-			if (left) { 
-				planePosX -= planeSpeedX;
+		if (!collision && !gameStartState) {
+			if (left && !right) { 
 				plane = leftPlane;
-			} else if (right) { 
-				planePosX += planeSpeedX;
+			} else if (right && !left) { 
 				plane = rightPlane;
-			} else if (up) {
-				plane = straightPlane;
-			} else if (down) { 
-				plane = straightPlane;
 			} else {
 				plane = straightPlane;
+			}
+			
+			if (left) { 
+				planePosX -= planeSpeedX;
+			} 
+			if (right) { 
+				planePosX += planeSpeedX;
+			}
+			
+			if (up && !down) {
+				planeSpeedY = planeSpeedYFast;
+			} else if (down && !up) {
+				planeSpeedY = planeSpeedYSlow;
+			} else {
+				planeSpeedY = planeSpeedYMedium;
 			}
 		}
 		
 		
-		if (space && !bulletExists && !collision) {
+		if (space && !bulletExists && !collision && !gameStartState) {
 			bulletExists = true;					
 		} else if (bulletExists) {
 			bulletPosY -= bulletSpeed;
@@ -366,7 +385,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		BufferedImage tileMap = tileMaps.get(mapNumber);
 		BufferedImage tileMapNext = tileMaps.get(mapNumber + 1);
 		int x = 0;
-		mapPosY = tileMap.getHeight() - contentHeight*tileWidth - tick*planeSpeedY;
+		mapPosY = tileMap.getHeight() - contentHeight*tileWidth - tick;
 		if (mapPosY <= 0) {
 			int w = screenWidth*tileWidth;
 			int h = contentHeight*tileWidth - Math.abs(mapPosY);
