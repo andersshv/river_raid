@@ -138,6 +138,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	private void setupPlane() {
 		try {
 			BufferedImage planeImage = ImageIO.read(new File("img/plane.png"));
+			System.out.println("ffffff");
 			straightPlane = planeImage.getSubimage(0, 0, tileWidth, tileWidth);	
 			leftPlane = planeImage.getSubimage(tileWidth, 0, tileWidth, tileWidth);
 			rightPlane = planeImage.getSubimage(tileWidth, tileWidth, tileWidth, tileWidth);		
