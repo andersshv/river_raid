@@ -33,12 +33,10 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	private boolean escape;	
 	private boolean space;
 	private boolean reset;
+	private boolean pause;
 	
 	public void keyPressed(KeyEvent e) {		
-		int keyCode = e.getKeyCode();
-		if(keyCode == KeyEvent.VK_ESCAPE) {	
-			escape = true;
-		}
+		int keyCode = e.getKeyCode();		
 		if(keyCode == KeyEvent.VK_LEFT) {			
 			left = true;
 			gameStartState = false;
@@ -57,12 +55,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		}
 		if(keyCode == KeyEvent.VK_SPACE) {			
 			space = true;
-		}		
-		if(escape && keyCode == KeyEvent.VK_Y) {
-			dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING));
-		}
-		if(escape && keyCode == KeyEvent.VK_N) {
-			escape = false;
+			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_R) {
 			reset = true;
@@ -88,6 +81,26 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		}
 		if(keyCode == KeyEvent.VK_R) {
 			reset = false;
+		}
+		if(keyCode == KeyEvent.VK_P) {
+			if(!gameStartState) {
+				pause = !pause;
+			}
+		}
+		if(keyCode == KeyEvent.VK_ESCAPE) {
+			if(!gameStartState) {
+				pause = true;
+			}
+			escape = true;
+		}		
+		if(escape && keyCode == KeyEvent.VK_Y) {
+			dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING));
+		}
+		if(escape && keyCode == KeyEvent.VK_N) {
+			if(!gameStartState) {
+				pause = false;
+			}
+			escape = false;
 		}
 	}
 	
@@ -287,7 +300,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 				sleepingTime = timePrFrame_ms - timeSpend_ms;
 				System.out.println(sleepingTime + "______" + startTime);
 				if (sleepingTime > 0) { Thread.sleep(sleepingTime); }
-				if (!collision && !gameStartState) {
+				if (!collision && !gameStartState && !pause) {
 					tick += 1 * planeSpeedY;
 				}
 			} catch (Exception e) {
@@ -307,8 +320,9 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 			bulletExists = false;
 			gameStartState = true;
 			plane = straightPlane;
+			pause = false;
 		}
-		if (!collision && !gameStartState) {
+		if (!collision && !gameStartState && !pause) {
 			if (left && !right) { 
 				plane = leftPlane;
 			} else if (right && !left) { 
@@ -333,15 +347,16 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 			}
 		}
 		
-		
-		if (space && !bulletExists && !collision && !gameStartState) {
-			bulletExists = true;					
-		} else if (bulletExists) {
-			bulletPosY -= bulletSpeed;
-			if (bulletPosY - bulletSpeed <= 0) {
-				bulletPosY = bulletStartPosY;
-				if (!space) {
-					bulletExists = false;
+		if (!pause) {
+			if (space && !bulletExists && !collision) {
+				bulletExists = true;					
+			} else if (bulletExists) {
+				bulletPosY -= bulletSpeed;
+				if (bulletPosY - bulletSpeed <= 0) {
+					bulletPosY = bulletStartPosY;
+					if (!space) {
+						bulletExists = false;
+					}
 				}
 			}
 		}
