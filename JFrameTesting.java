@@ -15,7 +15,7 @@ import java.awt.Graphics;
 import java.awt.Color;
 
 public class JFrameTesting extends JFrame implements KeyListener, Runnable {
-	
+
 	/*************** MAIN **************/	
 	public static void main(String[] args){	
 		SwingUtilities.invokeLater(new Runnable() {				
@@ -25,45 +25,52 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		});
 	}
 	
-	/************** KEYLISTENER *************/	
+	/************** KEYLISTENER *************/
 	private boolean left;
 	private boolean right;
 	private boolean up;
 	private boolean down;	
-	private boolean escape;	
 	private boolean space;
-	private boolean reset;
-	private boolean pause;
+
+	private boolean gameStartState = true;
+	private boolean gameRunningState = false;
+	private boolean collisionState = false;	
+	private boolean gamePausedState = false;
+	private boolean exitGameState = false;
 	
 	public void keyPressed(KeyEvent e) {		
-		int keyCode = e.getKeyCode();		
+		int keyCode = e.getKeyCode();
+		// For the arrow keys and the space key, we need to maintain when they are pressed		
 		if(keyCode == KeyEvent.VK_LEFT) {			
 			left = true;
-			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_RIGHT) {			
 			right = true;
-			gameStartState = false;
 		}
-		if(keyCode == KeyEvent.VK_UP) {			
+		if(keyCode == KeyEvent.VK_UP) {	
 			up = true;
-			gameStartState = false;
 		}
-		if(keyCode == KeyEvent.VK_DOWN) {			
+		if(keyCode == KeyEvent.VK_DOWN) {	
 			down = true;
-			gameStartState = false;
 		}
 		if(keyCode == KeyEvent.VK_SPACE) {			
 			space = true;
-			gameStartState = false;
 		}
-		if(keyCode == KeyEvent.VK_R) {
-			reset = true;
+		// For some states, the state changes when the arrow keys and/or the space key are pressed
+		if(keyCode == KeyEvent.VK_LEFT || keyCode == KeyEvent.VK_RIGHT || 
+			 keyCode == KeyEvent.VK_UP || keyCode == KeyEvent.VK_DOWN || 
+			 keyCode == KeyEvent.VK_SPACE) {
+			if(gameStartState || gamePausedState) {
+				gameStartState = false;
+				gameRunningState = true;
+				gamePausedState = false;
+			}			
 		}
 	}
 	
 	public void keyReleased(KeyEvent e) {
 		int keyCode = e.getKeyCode();
+		// For the arrow keys and the space key, we need to maintain when they are released
 		if(keyCode == KeyEvent.VK_LEFT) {			
 			left = false;
 		}
@@ -79,28 +86,50 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		if(keyCode == KeyEvent.VK_SPACE) {			
 			space = false;
 		}
+		// For some keys, we need to simply modify the state when they are released
 		if(keyCode == KeyEvent.VK_R) {
-			reset = false;
+			// Resetting specific values
+			tick = 0;
+			mapNumber = 1;
+			planePosX = planeStartPosX;
+			bulletExists = false;
+			bulletPosY = bulletStartPosY; 
+			plane = straightPlane;
+			// Setting start state
+			gameStartState = true;
+			gameRunningState = false;
+			collisionState = false;	
+			gamePausedState = false;
+			exitGameState = false;
 		}
+		// For some keys, the state changes when they are released
 		if(keyCode == KeyEvent.VK_P) {
-			if(!gameStartState) {
-				pause = !pause;
+			if(gameRunningState) {
+				gameRunningState = false;
+				gamePausedState = true;
+			} else if(gamePausedState) {
+				gameRunningState = true;
+				gamePausedState = false;
 			}
 		}
 		if(keyCode == KeyEvent.VK_ESCAPE) {
-			if(!gameStartState) {
-				pause = true;
+			if(gameRunningState) {
+				gameRunningState = false;
+				gamePausedState = true;
+			} 
+			if(exitGameState) {
+				exitGameState = false;
+			} else {
+				exitGameState = true;
 			}
-			escape = true;
 		}		
-		if(escape && keyCode == KeyEvent.VK_Y) {
-			dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING));
+		if(keyCode == KeyEvent.VK_Y) {
+			if(exitGameState) {
+				dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING));
+			}			
 		}
-		if(escape && keyCode == KeyEvent.VK_N) {
-			if(!gameStartState) {
-				pause = false;
-			}
-			escape = false;
+		if(keyCode == KeyEvent.VK_N) {
+			exitGameState = false;
 		}
 	}
 	
@@ -110,16 +139,63 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	
 	/************ FIELDS ***************/
 	private int tileWidth = 32;
-	
-	private int screenWidth = 32;
-	private int screenHeight = 24;
-	private int dashboardHeight = 3; 
-	private int contentHeight = screenHeight - dashboardHeight;
+
+	private int tilesScreenWidth = 32;
+	private int tilesScreenHeight = 24;
+
+	private int tilesDashboardHeight = 3; 
+	private int tilesContentHeight = tilesScreenHeight - tilesDashboardHeight;
+
+	private int screenWidth = tileWidth * tilesScreenWidth;
+	private int screenHeight = tileWidth * tilesScreenHeight;
+  private int contentHeight = tileWidth * tilesContentHeight;
+
+	private int planeStartPosX;
+	private int planePosX;
+	private int planePosY;
+	private int planeSpeedX;	
+	private int planeSpeedYSlow;
+	private int planeSpeedYMedium;
+	private int planeSpeedYFast;
+	private int planeSpeedY;
+	private BufferedImage straightPlane;	
+	private BufferedImage leftPlane;
+	private BufferedImage rightPlane;		
+	private BufferedImage plane;
+
+	private boolean bulletExists;
+	private int	bulletStartPosY;
+	private int bulletPosY;
+	private int bulletSpeed;	
+	private BufferedImage bulletImage;
+
+	private Map<Integer, BufferedImage> tileMaps = new HashMap<>();
+
+	private BufferedImage dashBoardImage;
+
+	private String exitString = "Do you want to exitGameState the game? [Y] or [N]";
+	private int exitStringWidth;
+	private BufferedImage exitScreenBGImage;	
+
+	private int tick = 0;
+
+	private BufferedImage mainImage = new BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_RGB	);
+	private Graphics mainG = (Graphics) mainImage.getGraphics();
+	private int mapNumber = 1;
+	private int mapPosY;
+
+	private	Graphics frame_g;
 	
 	/************ CONSTRUCTOR ****************/	
 	public JFrameTesting(){
+		setupPlane();
+		setupBullet();		
+		setupMap();
+		setupDashboard();
+		setupExitScreen();
+
 		setTitle("JFrameTesting");		
-		setSize(screenWidth*tileWidth, screenHeight*tileWidth);
+		setSize(screenWidth, screenHeight);
 		setLocationRelativeTo(null); // Center jframe on screen
 		setAlwaysOnTop(true); // Make the jframe stay on top of all other windows
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -127,64 +203,225 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		
 		// Set up keylistener methods
 		addKeyListener(this);
+
+		frame_g = this.getGraphics();
 		
 		// Call run 
 		new Thread(this).start();
 	}
 	
-	public void run() {
-		setupPlane();
-		setupBullet();		
-		setupMap();
-		setupDashboard();
-		setupExitScreen();
-		
+	public void run() {		
 		enterGameLoop();
+	}	
+	
+	/**************** GAME LOOP ***************/	
+	private void enterGameLoop() {
+		boolean running = true;
+		long startTime, endTime;		
+		long FPS = 30;
+		long timePrFrame_ms = 1000 / FPS;
+		long timeSpend_ms;
+		long sleepingTime;
+		while(running) {			
+			try {	
+				startTime = System.nanoTime();
+				updateModel();
+				renderMainImage(); 	
+				drawMainImageToFrame();
+				endTime = System.nanoTime();
+				timeSpend_ms = (endTime - startTime) / 1000000;
+				sleepingTime = timePrFrame_ms - timeSpend_ms;
+				System.out.println(sleepingTime + "______" + startTime);
+				if (sleepingTime > 0) { Thread.sleep(sleepingTime); }
+				if (gameRunningState) {
+					tick += planeSpeedY;
+				}
+			} catch (Exception e) {
+				running = false;
+				System.out.println("Error in game loop");
+				e.printStackTrace();
+			}
+		}
 	}
 	
+	private void updateModel() {		
+		if (gameRunningState || gameStartState) {
+			if (left && !right) { 
+				plane = leftPlane;
+			} else if (right && !left) { 
+				plane = rightPlane;
+			} else {
+				plane = straightPlane;
+			}
+			
+			if (left) { 
+				planePosX -= planeSpeedX;
+			} 
+			if (right) { 
+				planePosX += planeSpeedX;
+			}
+			
+			if (up && !down) {
+				planeSpeedY = planeSpeedYFast;
+			} else if (down && !up) {
+				planeSpeedY = planeSpeedYSlow;
+			} else {
+				planeSpeedY = planeSpeedYMedium;
+			}
+
+			if(space && !bulletExists) {
+				bulletExists = true;
+			} else if (bulletExists) {
+				bulletPosY -= bulletSpeed;
+				if (bulletPosY <= bulletImage.getHeight()) {
+					bulletPosY = bulletStartPosY;
+					if (space) {
+						bulletExists = true;
+					} else {
+						bulletExists = false;
+					}
+				}
+			}
+		}
+
+		if(collisionState) {
+			if (bulletExists) {
+				bulletPosY -= bulletSpeed;
+				if (bulletPosY < bulletImage.getHeight()) {
+					bulletExists = false;
+				}
+			}
+		}
+		
+		// Check for collisions with plane and landscape				
+		BufferedImage currMap = tileMaps.get(mapNumber);
+		int rgb;
+		if (mapPosY > -1*contentHeight + 3*tileWidth) {
+			// 1: Check front
+			rgb = currMap.getRGB(
+				planePosX+tileWidth/2, mapPosY + contentHeight - 2*tileWidth - planeSpeedY*2
+			);
+			if (rgb == -12482236) { // Green Color
+				collisionState = true;
+				gameRunningState = false;
+			}		
+			// 2: Check right
+			rgb = currMap.getRGB(
+				planePosX+tileWidth-1, mapPosY + contentHeight - 2*tileWidth + tileWidth/2
+			);
+			if (rgb == -12482236) { // Green Color
+				collisionState = true;
+				gameRunningState = false;
+			}
+			// 2: Check left
+			rgb = currMap.getRGB(
+				planePosX+1, mapPosY + contentHeight - 2*tileWidth + tileWidth/2
+			);
+			if (rgb == -12482236) { // Green Color
+				collisionState = true;
+				gameRunningState = false;
+			}
+		}		
+	}
+	
+	private void renderMainImage() {		
+		// Draw map section		
+		if(gameStartState || gameRunningState || collisionState || gamePausedState) {
+			BufferedImage tileMap = tileMaps.get(mapNumber);
+			BufferedImage tileMapNext = tileMaps.get(mapNumber + 1);
+			int x = 0;
+			mapPosY = tileMap.getHeight() - contentHeight - tick;
+			if (mapPosY <= 0) {
+				int w = screenWidth;
+				int h = contentHeight - Math.abs(mapPosY);
+				if (h <= 0) {
+					int yNext = tileMapNext.getHeight() - contentHeight;
+					int hNext = contentHeight;
+					BufferedImage contentImageNext = tileMapNext.getSubimage(0, yNext, w, hNext);
+					mainG.drawImage(contentImageNext, 0, 0, null);					
+					mapNumber += 1;
+					tick = 0;
+				} else {				
+					int yNext = tileMapNext.getHeight() - contentHeight + h;
+					int hNext = contentHeight - h;
+					if (hNext > 0) {
+						BufferedImage contentImageNext = tileMapNext.getSubimage(0, yNext, w, hNext);
+						mainG.drawImage(contentImageNext, 0, 0, null);
+					}
+					BufferedImage contentImage = tileMap.getSubimage(x, 0, w, h);
+					mainG.drawImage(contentImage, 0, Math.abs(mapPosY), null);
+				}
+			} else {
+				int w = screenWidth;
+				int h = contentHeight;		
+				BufferedImage contentImage = tileMap.getSubimage(x, mapPosY, w, h);			
+				mainG.drawImage(contentImage, 0, 0, null);
+			}
+		
+			// Dashboard
+			mainG.drawImage(dashBoardImage, 0, contentHeight, null);
+		
+			// Plane				
+			mainG.drawImage(plane, planePosX, planePosY, null);
+
+			// Bullet
+			if (bulletExists) {
+				System.out.println("affff");
+				mainG.drawImage(bulletImage, planePosX + 13, bulletPosY, null);
+			}
+		}
+		
+		if(exitGameState) {
+			mainG.drawImage(exitScreenBGImage, 0, 0, null);	
+			mainG.setColor(Color.RED);
+			mainG.drawString(exitString, (screenWidth)/2-exitStringWidth/2, (screenHeight)/2);
+		}
+	}
+	
+	private void drawMainImageToFrame() {				
+		frame_g.drawImage(mainImage, 0, 0, null);
+	}
+
+
+	//////////////////////////////////////////////////////////////////
+	///////////////////////// SETUP //////////////////////////////////
+	//////////////////////////////////////////////////////////////////	
+
 	/************* PLANE ******************/	
-	private int planeStartPosX;
-	private int planePosX;
-	private int planePosY = (contentHeight*tileWidth)-tileWidth*2;
-	private int planeSpeedX = 4;	
-	private int planeSpeedYSlow = 4;
-	private int planeSpeedYMedium = 8;
-	private int planeSpeedYFast = 12;
-	private int planeSpeedY = planeSpeedYMedium;
-	private BufferedImage straightPlane;	
-	private BufferedImage leftPlane;
-	private BufferedImage rightPlane;		
-	private BufferedImage plane;
 	private void setupPlane() {
 		try {
+			planeStartPosX = (screenWidth)/2-tileWidth/2;
+			planePosX = planeStartPosX;
+			planePosY = (contentHeight)-tileWidth*2;
+			planeSpeedX = 4;	
+			planeSpeedYSlow = 4;
+			planeSpeedYMedium = 8;
+			planeSpeedYFast = 12;
+			planeSpeedY = planeSpeedYMedium;
 			BufferedImage planeImage = ImageIO.read(new File("img/plane.png"));
 			straightPlane = planeImage.getSubimage(0, 0, tileWidth, tileWidth);	
 			leftPlane = planeImage.getSubimage(tileWidth, 0, tileWidth, tileWidth);
 			rightPlane = planeImage.getSubimage(tileWidth, tileWidth, tileWidth, tileWidth);		
 			plane = straightPlane;
-			planeStartPosX = (screenWidth*tileWidth)/2-tileWidth/2;
-			planePosX = planeStartPosX;
 		} catch (Exception e) {
 			System.out.println("Error setting up plane images");
 		}
 	}
 	
 	/**************** BULLET ***************/
-	boolean bulletExists = false;
-	int	bulletStartPosY = planePosY;
-	int bulletPosY = bulletStartPosY;
-	int bulletSpeed = 25;	
-	BufferedImage bulletImage;
 	private void setupBullet() {
 		try {
+			bulletExists = false;
+			bulletStartPosY = planePosY;
+			bulletPosY = bulletStartPosY;
+			bulletSpeed = 25;	
 			bulletImage = ImageIO.read(new File("img/bullet.png"));
 		} catch (Exception e) {
 			System.out.println("Error getting bullet.png");
 		}
 	}
 	
-	/*************** MAP ******************/
-	private Map<Integer, BufferedImage> tileMaps = new HashMap<>();
+	/*************** MAP ******************/	
 	private void setupMap() {
 		try {
 			BufferedImage fullTiles = ImageIO.read(new File("img/fullTiles.png"));
@@ -223,8 +460,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		}
 	}
 	
-	/**************** DASHBOARD ***********/
-	private BufferedImage dashBoardImage;
+	/**************** DASHBOARD ***********/	
 	private void setupDashboard() {
 		try {
 			BufferedImage fullTiles = ImageIO.read(new File("img/fullTiles.png"));
@@ -233,17 +469,17 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 			BufferedImage grayWithTopBlack = fullTiles.getSubimage(32, 32, tileWidth, tileWidth);
 			
 			dashBoardImage = new BufferedImage(
-				screenWidth*tileWidth, 
-				dashboardHeight*tileWidth, 
+				screenWidth, 
+				tilesDashboardHeight*tileWidth, 
 				BufferedImage.TYPE_INT_RGB
 			);
 			Graphics g = (Graphics) dashBoardImage.getGraphics();
 			
-			for (int i = 0; i < screenWidth; i++) {
+			for (int i = 0; i < tilesScreenWidth; i++) {
 				g.drawImage(grayWithTopBlack, i*tileWidth, 0, null);
 			}
-			for (int i = 1; i < dashboardHeight; i++) {
-				for (int j = 0; j < screenWidth; j++) {
+			for (int i = 1; i < tilesDashboardHeight; i++) {
+				for (int j = 0; j < tilesScreenWidth; j++) {
 					g.drawImage(fullGray, j*tileWidth, i*tileWidth, null);
 				}
 			}
@@ -252,24 +488,21 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		}
 	}
 	
-	/*************** EXIT SCREEN ************/
-	String exitString = "Do you want to quit the game? [Y] or [N]";
-	int exitStringWidth;
-	private BufferedImage exitScreenBGImage;	
+	/*************** EXIT SCREEN ************/	
 	private void setupExitScreen() {		
 		try {			
 			BufferedImage fullTiles = ImageIO.read(new File("img/fullTiles.png"));			
 			BufferedImage fullBlack = fullTiles.getSubimage(0, 64, tileWidth, tileWidth);
 			
 			exitScreenBGImage = new BufferedImage(
-				screenWidth*tileWidth, 
-				screenHeight*tileWidth, 
+				screenWidth, 
+				screenHeight, 
 				BufferedImage.TYPE_INT_RGB
 			);
 			Graphics g = (Graphics) exitScreenBGImage.getGraphics();
 			
-			for (int i = 0; i < screenHeight; i++) {
-				for (int j = 0; j < screenWidth; j++) {
+			for (int i = 0; i < tilesScreenHeight; i++) {
+				for (int j = 0; j < tilesScreenWidth; j++) {
 					g.drawImage(fullBlack, j*tileWidth, i*tileWidth, null);
 				}
 			}			
@@ -278,181 +511,5 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 			System.out.println("Error in setup maps");
 		}
 	}
-	
-	/**************** GAME LOOP ***************/
-	int tick = 0;
-	boolean running = true;
-	boolean gameStartState = true;
-	private void enterGameLoop() {
-		long startTime, endTime;		
-		long FPS = 30;
-		long timePrFrame_ms = 1000 / FPS;
-		long timeSpend_ms;
-		long sleepingTime;
-		while(running) {			
-			try {	
-				startTime = System.nanoTime();
-				updateModel();
-				renderMainImage(); 	
-				drawMainImageToFrame();
-				endTime = System.nanoTime();
-				timeSpend_ms = (endTime - startTime) / 1000000;
-				sleepingTime = timePrFrame_ms - timeSpend_ms;
-				System.out.println(sleepingTime + "______" + startTime);
-				if (sleepingTime > 0) { Thread.sleep(sleepingTime); }
-				if (!collision && !gameStartState && !pause) {
-					tick += 1 * planeSpeedY;
-				}
-			} catch (Exception e) {
-				running = false;
-				System.out.println("Error in game loop");
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	private boolean collision;
-	private void updateModel() {
-		if (reset) {
-			tick = 0;
-			collision = false;
-			planePosX = planeStartPosX;
-			bulletExists = false;
-			gameStartState = true;
-			plane = straightPlane;
-			pause = false;
-		}
-		if (!collision && !gameStartState && !pause) {
-			if (left && !right) { 
-				plane = leftPlane;
-			} else if (right && !left) { 
-				plane = rightPlane;
-			} else {
-				plane = straightPlane;
-			}
-			
-			if (left) { 
-				planePosX -= planeSpeedX;
-			} 
-			if (right) { 
-				planePosX += planeSpeedX;
-			}
-			
-			if (up && !down) {
-				planeSpeedY = planeSpeedYFast;
-			} else if (down && !up) {
-				planeSpeedY = planeSpeedYSlow;
-			} else {
-				planeSpeedY = planeSpeedYMedium;
-			}
-		}
-		
-		if (!pause) {
-			if (space && !bulletExists && !collision) {
-				bulletExists = true;					
-			} else if (bulletExists) {
-				bulletPosY -= bulletSpeed;
-				if (bulletPosY - bulletSpeed <= 0) {
-					bulletPosY = bulletStartPosY;
-					if (!space) {
-						bulletExists = false;
-					}
-				}
-			}
-		}
-		
-		// Check for collisions with plane and landscape				
-		BufferedImage currMap = tileMaps.get(mapNumber);
-		int rgb;
-		if (mapPosY > -1*contentHeight*tileWidth + 3*tileWidth) {
-			// 1: Check front
-			rgb = currMap.getRGB(
-				planePosX+tileWidth/2, mapPosY + contentHeight*tileWidth - 2*tileWidth - planeSpeedY*2
-			);
-			if (rgb == -12482236) { // Green Color
-				collision = true;
-			}		
-			// 2: Check right
-			rgb = currMap.getRGB(
-				planePosX+tileWidth-1, mapPosY + contentHeight*tileWidth - 2*tileWidth + tileWidth/2
-			);
-			if (rgb == -12482236) { // Green Color
-				collision = true;
-			}
-			// 2: Check left
-			rgb = currMap.getRGB(
-				planePosX+1, mapPosY + contentHeight*tileWidth - 2*tileWidth + tileWidth/2
-			);
-			if (rgb == -12482236) { // Green Color
-				collision = true;
-			}
-		}
-		
-	}
-	
-	private BufferedImage mainImage = 
-		new BufferedImage(screenWidth*tileWidth, screenHeight*tileWidth, BufferedImage.TYPE_INT_RGB	);
-	private Graphics mainG = (Graphics) mainImage.getGraphics();
-	int mapNumber = 1;
-	int mapPosY;
-	private void renderMainImage() {		
-		// Draw map section		
-		BufferedImage tileMap = tileMaps.get(mapNumber);
-		BufferedImage tileMapNext = tileMaps.get(mapNumber + 1);
-		int x = 0;
-		mapPosY = tileMap.getHeight() - contentHeight*tileWidth - tick;
-		if (mapPosY <= 0) {
-			int w = screenWidth*tileWidth;
-			int h = contentHeight*tileWidth - Math.abs(mapPosY);
-			if (h <= 0) {
-				int yNext = tileMapNext.getHeight() - contentHeight*tileWidth;
-				int hNext = contentHeight*tileWidth;
-				BufferedImage contentImageNext = tileMapNext.getSubimage(0, yNext, w, hNext);
-				mainG.drawImage(contentImageNext, 0, 0, null);					
-				mapNumber += 1;
-				tick = 0;
-			} else {				
-				int yNext = tileMapNext.getHeight() - contentHeight*tileWidth + h;
-				int hNext = contentHeight*tileWidth - h;
-				if (hNext > 0) {
-					BufferedImage contentImageNext = tileMapNext.getSubimage(0, yNext, w, hNext);
-					mainG.drawImage(contentImageNext, 0, 0, null);
-				}
-				BufferedImage contentImage = tileMap.getSubimage(x, 0, w, h);
-				mainG.drawImage(contentImage, 0, Math.abs(mapPosY), null);
-			}
-		} else {
-			int w = screenWidth*tileWidth;
-			int h = contentHeight*tileWidth;		
-			BufferedImage contentImage = tileMap.getSubimage(x, mapPosY, w, h);			
-			mainG.drawImage(contentImage, 0, 0, null);
-		}
-		
-		// Dashboard
-		mainG.drawImage(dashBoardImage, 0, contentHeight*tileWidth, null);
-		
-		// Plane				
-		mainG.drawImage(plane, planePosX, planePosY, null);
 
-		// Bullet
-		if (bulletExists) {
-			mainG.drawImage(bulletImage, planePosX + 13, bulletPosY, null);
-		}
-		
-		if(escape) {
-			mainG.drawImage(exitScreenBGImage, 0, 0, null);	
-			mainG.setColor(Color.RED);
-			mainG.drawString(
-				exitString, 
-				(screenWidth*tileWidth)/2-exitStringWidth/2, 
-				(screenHeight*tileWidth)/2
-			);
-		}
-	}
-	
-	private void drawMainImageToFrame() {
-		Graphics frame_g = this.getGraphics();				
-		frame_g.drawImage(mainImage, 0, 0, null);
-		frame_g.dispose();
-	}
 }
