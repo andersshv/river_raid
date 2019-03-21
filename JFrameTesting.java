@@ -184,7 +184,9 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	private int mapNumber = 1;
 	private int mapPosY;
 
-	private	Graphics frame_g;
+	private	Graphics frameG;
+
+	private BufferedImage roads;
 	
 	/************ CONSTRUCTOR ****************/	
 	public JFrameTesting(){
@@ -204,7 +206,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 		// Set up keylistener methods
 		addKeyListener(this);
 
-		frame_g = this.getGraphics();
+		frameG = this.getGraphics();
 		
 		// Call run 
 		new Thread(this).start();
@@ -269,17 +271,24 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 				planeSpeedY = planeSpeedYMedium;
 			}
 
-			if(space && !bulletExists) {
-				bulletExists = true;
-			} else if (bulletExists) {
-				bulletPosY -= bulletSpeed;
-				if (bulletPosY <= bulletImage.getHeight()) {
+			if(space) {
+				if (bulletExists) {
+					bulletPosY -= bulletSpeed;
+					if (bulletPosY < bulletImage.getHeight()) {
+						bulletPosY = bulletStartPosY;
+					}
+				} else {
+					bulletExists = true;
 					bulletPosY = bulletStartPosY;
-					if (space) {
-						bulletExists = true;
-					} else {
+				}
+			} else {
+				if (bulletExists) {
+					bulletPosY -= bulletSpeed;
+					if (bulletPosY < bulletImage.getHeight()) {
 						bulletExists = false;
 					}
+				} else {
+					// Do nothing: Setting bulletExists to false doesnt make sense, since it is already false
 				}
 			}
 		}
@@ -366,9 +375,11 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 
 			// Bullet
 			if (bulletExists) {
-				System.out.println("affff");
 				mainG.drawImage(bulletImage, planePosX + 13, bulletPosY, null);
 			}
+
+			// Roads
+			mainG.drawImage(roads, 0, 0, null);
 		}
 		
 		if(exitGameState) {
@@ -379,7 +390,7 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 	}
 	
 	private void drawMainImageToFrame() {				
-		frame_g.drawImage(mainImage, 0, 0, null);
+		frameG.drawImage(mainImage, 0, 0, null);
 	}
 
 
@@ -457,6 +468,15 @@ public class JFrameTesting extends JFrame implements KeyListener, Runnable {
 			}			
 		} catch (Exception e) {
 			System.out.println("Error in setup maps");
+		}
+	}
+
+	/**************** ROADS*************/
+	private void setupRoads() {
+		try {
+			BufferedImage roads = ImageIO.read(new File("img/roads.png"));
+		} catch (Exception e) {
+			System.out.println("Error setting up roads");
 		}
 	}
 	
